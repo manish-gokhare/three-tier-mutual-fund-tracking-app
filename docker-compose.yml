@@ -1,0 +1,86 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mf-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - mf_network
+
+  backend:
+    build:
+      context: ./backend
+    container_name: mf-tracker-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+    ports:
+      - "${BACKEND_PORT}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mf_network
+
+  nav_updater:
+    build:
+      context: ./backend
+    container_name: mf-tracker-nav-updater
+    restart: unless-stopped
+    command: ["python", "-m", "app.nav_worker"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      AMFI_NAV_URL: ${AMFI_NAV_URL}
+      NAV_REFRESH_INTERVAL_SECONDS: ${NAV_REFRESH_INTERVAL_SECONDS}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mf_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: mf-tracker-frontend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      BACKEND_API_URL: ${BACKEND_API_URL}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mf_network
+
+volumes:
+  postgres_data:
+
+networks:
+  mf_network:
+    driver: bridge

@@ -1,0 +1,15 @@
+{
+  "name": "mf-tracker-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node/Express dashboard for the Mutual Fund Tracker API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "ejs": "3.1.10",
+    "express": "4.21.2"
+  }
+}

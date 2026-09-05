@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= mode === 'login' ? 'Sign in' : 'Create account' %> · Mutual Fund Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="auth-page">
+    <main class="auth-card">
+      <p class="eyebrow">PERSONAL INVESTING</p>
+      <h1>Mutual Fund Tracker</h1>
+      <h2><%= mode === 'login' ? 'Welcome back' : 'Create your portfolio' %></h2>
+      <p class="auth-copy"><%= mode === 'login' ? 'Sign in to view only your tracked holdings.' : 'Your holdings are kept private to your account.' %></p>
+      <% if (error) { %><p class="form-error"><%= error %></p><% } %>
+      <form class="auth-form" action="/auth/<%= mode %>" method="post">
+        <% if (mode === 'register') { %>
+          <label>Full name<input name="full_name" autocomplete="name" required maxlength="120"></label>
+        <% } %>
+        <label>Email<input name="email" type="email" autocomplete="email" required maxlength="255"></label>
+        <label>Password<input name="password" type="password" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>" required minlength="<%= mode === 'login' ? 1 : 10 %>" maxlength="128"></label>
+        <button type="submit"><%= mode === 'login' ? 'Sign in' : 'Create account' %></button>
+      </form>
+      <% if (mode === 'login') { %>
+        <p class="auth-switch">New here? <a href="/register">Create an account</a></p>
+        <p class="demo-note">Demo login: <code>demo@mftracker.local</code> / <code>DemoPass!2026</code></p>
+      <% } else { %>
+        <p class="auth-switch">Already have an account? <a href="/login">Sign in</a></p>
+      <% } %>
+    </main>
+  </body>
+</html>

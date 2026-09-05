@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mutual Fund Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">PERSONAL INVESTING</p>
+        <h1>Mutual Fund Tracker</h1>
+        <p class="subtle">Track published NAVs and build your fund portfolio.</p>
+      </div>
+      <% if (user) { %>
+        <div class="header-actions">
+          <div class="user-chip"><%= user.full_name %></div>
+          <form action="/auth/logout" method="post"><button class="logout" type="submit">Log out</button></form>
+        </div>
+      <% } %>
+    </header>
+
+    <% if (apiError) { %>
+      <main class="error-panel">
+        <h2>The API is not ready yet</h2>
+        <p><%= apiError %></p>
+        <p>Once the backend is healthy, refresh this page.</p>
+      </main>
+    <% } else { %>
+      <main>
+        <section class="summary-grid" aria-label="Portfolio summary">
+          <article><span>Tracked funds</span><strong><%= holdings.length %></strong></article>
+          <article><span>Current portfolio value</span><strong id="portfolio-value">—</strong></article>
+          <article><span>Total gain / loss</span><strong id="portfolio-gain">—</strong></article>
+        </section>
+
+        <section class="sync-note" aria-label="NAV source status">
+          <% if (navSync?.status === 'success') { %>
+            Latest available NAVs are sourced from AMFI. Last check: <strong><%= new Date(navSync.completed_at).toLocaleString('en-IN') %></strong>; <strong><%= navSync.matched_funds %></strong> tracked schemes matched.
+          <% } else if (navSync?.status === 'failed') { %>
+            The latest AMFI refresh failed; displayed values fall back to the last successful data. The worker will retry automatically.
+          <% } else { %>
+            Waiting for the first AMFI NAV refresh…
+          <% } %>
+        </section>
+
+        <section class="panel" aria-labelledby="portfolio-title">
+          <div class="section-heading"><div><p class="eyebrow">YOUR PORTFOLIO</p><h2 id="portfolio-title">Current holdings</h2></div></div>
+          <% if (holdings.length === 0) { %>
+            <p class="empty">Choose a fund below to start tracking it.</p>
+          <% } else { %>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fund</th><th>Units</th><th>Avg. NAV</th><th>Latest NAV</th><th>Current value</th><th>Gain / loss</th></tr></thead>
+                <tbody>
+                  <% holdings.forEach((holding) => { %>
+                    <tr>
+                      <td><strong><%= holding.fund_name %></strong><small><%= holding.category %> · <%= holding.ticker_symbol %></small></td>
+                      <td><%= holding.units %></td>
+                      <td><%= holding.average_purchase_nav ? '₹' + holding.average_purchase_nav : '—' %></td>
+                      <td><%= holding.latest_nav ? '₹' + holding.latest_nav : '—' %></td>
+                      <td class="money"><%= holding.current_value ? '₹' + holding.current_value : '—' %></td>
+                      <td class="gain-cell" data-gain="<%= holding.gain_loss ?? '' %>"><%= holding.gain_loss == null ? '—' : '₹' + holding.gain_loss %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </section>
+
+        <section class="panel" aria-labelledby="funds-title">
+          <div class="section-heading">
+            <div><p class="eyebrow">MARKET WATCH</p><h2 id="funds-title">Available mutual funds</h2></div>
+            <label class="search-label">Search <input id="fund-search" type="search" placeholder="Fund or ticker"></label>
+          </div>
+          <div class="table-wrap">
+            <table id="fund-table">
+              <thead><tr><th>Fund</th><th>Category</th><th>Ticker</th><th>Latest NAV</th><th>NAV history</th><th>Add holding</th></tr></thead>
+              <tbody>
+                <% funds.forEach((fund) => { %>
+                  <tr data-search="<%= `${fund.fund_name} ${fund.category} ${fund.ticker_symbol}`.toLowerCase() %>">
+                    <td><strong><%= fund.fund_name %></strong></td>
+                    <td><span class="tag"><%= fund.category %></span></td>
+                    <td><code><%= fund.ticker_symbol %></code></td>
+                    <td><strong><%= fund.latest_nav ? '₹' + fund.latest_nav : '—' %></strong><small><%= fund.latest_nav_date || '' %> · <%= fund.latest_nav_source === 'amfi' ? 'AMFI' : 'sample fallback' %></small></td>
+                    <td><button class="secondary history-button" data-fund-id="<%= fund.id %>" data-fund-name="<%= fund.fund_name %>">View history</button></td>
+                    <td>
+                      <form class="holding-form" data-fund-id="<%= fund.id %>">
+                        <label class="sr-only">Units</label><input name="units" type="number" min="0.0001" step="0.0001" placeholder="Units" required>
+                        <label class="sr-only">Purchase NAV</label><input name="average_purchase_nav" type="number" min="0.0001" step="0.0001" value="<%= fund.latest_nav || '' %>" placeholder="Purchase NAV">
+                        <button type="submit">Track</button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+      <dialog id="history-dialog">
+        <div class="dialog-heading"><h2 id="history-title">NAV history</h2><button id="close-dialog" class="secondary" aria-label="Close">Close</button></div>
+        <div id="history-content" class="history-content">Loading…</div>
+      </dialog>
+      <div id="toast" role="status" aria-live="polite"></div>
+      <script id="dashboard-data" type="application/json"><%- JSON.stringify({ holdings }).replace(/</g, '\\u003c') %></script>
+      <script src="/app.js"></script>
+    <% } %>
+  </body>
+</html>
