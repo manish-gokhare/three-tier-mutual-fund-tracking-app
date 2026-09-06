@@ -11,6 +11,41 @@ This repository runs a PostgreSQL database, a FastAPI REST API, an AMFI NAV upda
    docker compose up --build
    ```
 
+2a. To temporarily stop the running containers without deleting them or your networks, press Ctrl+C in the terminal where they are running.
+
+If you ran them in detached mode (using -d), run this command from the same directory:
+
+   ```sh
+   docker compose stop
+   ```
+
+2b.
+
+You can start them back up later by simply running docker compose up -d
+
+   ```sh
+   docker compose up -d
+   ```
+
+
+2c.
+
+To stop and remove the containers, along with the custom Docker network, run:
+
+```sh
+docker compose down
+```
+Note: This command keeps your database data intact for the next time you start the app.
+
+2d.
+
+To completely wipe everything (including your database data):
+If you need to start completely fresh and delete the persistent database volume, add the -v flag:
+
+```sh
+  docker compose down -v
+```
+
 3. Open [http://localhost:3000](http://localhost:3000). The FastAPI interactive documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
 
 The first startup initializes the database with a demo investor, 50 Indian equity mutual funds covering Large, Mid, Small, Flexi, and Multi Cap categories, and 60 days of deterministic fallback NAV data. The `nav_updater` service checks AMFI's official complete NAV report every six hours, stores the latest published end-of-day NAV, and transparently prioritizes it over fallback data. AMFI publishes NAVs after each trading day; this is not an intraday price feed.
