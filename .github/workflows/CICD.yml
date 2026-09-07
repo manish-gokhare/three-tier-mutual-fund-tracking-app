@@ -7,7 +7,7 @@ on:
 
 jobs:
   backend-ci:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     defaults:
       run:
@@ -35,7 +35,7 @@ jobs:
     
 # Frontend CI Tests
   frontend-ci:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     defaults:
       run:
@@ -60,7 +60,7 @@ jobs:
 
 #Build and push Docker images for backend and frontend
   docker-build-push:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     needs:
       - backend-ci
@@ -75,9 +75,12 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+# For Self-hosted runners,  Installed Docker Buildx in advance.
+# so no need to set up Buildx explicitly. Uncomment the following lines 
+# if you want to set up Buildx explicitly on github acitions runner.
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v4
 
       - name: Build and push backend image
         uses: docker/build-push-action@v7
