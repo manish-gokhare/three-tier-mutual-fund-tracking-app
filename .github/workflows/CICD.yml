@@ -115,6 +115,18 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
 
+      # Deplpoyment steps on EC2 instance (Amazon Linux)
+      - name: Prepare deployment directory
+        run: |
+          ssh \
+           -i ~/.ssh/ec2_key \
+           -o StrictHostKeyChecking=no \
+           ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }} << 'EOF'
+
+           sudo mkdir -p /opt/mf-tracker/database
+           sudo chown -R ec2-user:ec2-user /opt/mf-tracker
+
+          EOF
       
       - name: Copy deployment files & DB init script to EC2 instance.
         run: |
