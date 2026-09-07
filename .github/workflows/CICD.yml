@@ -128,7 +128,7 @@ jobs:
               -i ~/.ssh/ec2_key \
               -o StrictHostKeyChecking=no \
               database/init.sql \
-              ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/database/        
+              ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/database/init.sql       
 
       - name: Deploy application
         run: |
