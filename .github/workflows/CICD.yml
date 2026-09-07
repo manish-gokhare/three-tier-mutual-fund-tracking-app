@@ -1,4 +1,4 @@
-name: Backend CI
+name: CICD Pipeline MF App
 
 on:
   push:
