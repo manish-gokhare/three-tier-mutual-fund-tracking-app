@@ -32,6 +32,8 @@ jobs:
 
       - name: Run Pytest
         run: python -m pytest
+    
+# Frontend CI Tests
   frontend-ci:
     runs-on: ubuntu-latest
 
@@ -55,7 +57,7 @@ jobs:
 
       - name: Check frontend application
         run: node --check server.js
-        
+
 #Build and push Docker images for backend and frontend
   docker-build-push:
     runs-on: ubuntu-latest
