@@ -22,7 +22,8 @@ services:
       - mf_network
 
   backend:
-    image: manishgokhare/mf-tracker-backend:latest
+    build:
+      context: ./backend
     container_name: mf-tracker-backend
     restart: unless-stopped
     environment:
@@ -45,7 +46,8 @@ services:
       - mf_network
 
   nav_updater:
-    image: manishgokhare/mf-tracker-backend:latest
+    build:
+      context: ./backend
     container_name: mf-tracker-nav-updater
     restart: unless-stopped
     command: ["python", "-m", "app.nav_worker"]
@@ -60,7 +62,8 @@ services:
       - mf_network
 
   frontend:
-    image: manishgokhare/mf-tracker-frontend:latest
+    build:
+      context: ./frontend
     container_name: mf-tracker-frontend
     restart: unless-stopped
     environment:
