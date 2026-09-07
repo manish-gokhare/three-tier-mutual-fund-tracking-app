@@ -97,3 +97,49 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: manishgokhare/mf-tracker-frontend:latest
+  
+  deploy-to-ec2:
+    runs-on: self-hosted
+
+    needs:
+      - docker-build-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+      - name: Copy docker-compose.yml to deployment EC2
+        run: |
+          scp \
+            -i ~/.ssh/ec2_key \
+            -o StrictHostKeyChecking=no \
+            docker-compose.yml \
+            ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/docker-compose.yml
+
+      - name: Deploy application
+        run: |
+          ssh \
+            -i ~/.ssh/ec2_key \
+            -o StrictHostKeyChecking=no \
+            ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }} << 'EOF'
+
+            set -e
+
+            cd /opt/mf-tracker
+
+            echo "Pulling latest Docker images..."
+            docker compose pull
+
+            echo "Starting application..."
+            docker compose up -d
+
+            echo "Deployment status:"
+            docker compose ps
+
+          EOF
