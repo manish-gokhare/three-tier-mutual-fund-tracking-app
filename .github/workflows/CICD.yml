@@ -116,7 +116,7 @@ jobs:
           chmod 600 ~/.ssh/ec2_key
 
       
-      - name: Copy deployment files to EC2
+      - name: Copy deployment files & DB init script to EC2 instance.
         run: |
           scp \
               -i ~/.ssh/ec2_key \
