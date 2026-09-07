@@ -115,13 +115,20 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
 
-      - name: Copy docker-compose.yml to deployment EC2
+      
+      - name: Copy deployment files to EC2
         run: |
           scp \
-            -i ~/.ssh/ec2_key \
-            -o StrictHostKeyChecking=no \
-            docker-compose.yml \
-            ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/docker-compose.yml
+              -i ~/.ssh/ec2_key \
+              -o StrictHostKeyChecking=no \
+              docker-compose.yml \
+              ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/
+
+          scp \
+              -i ~/.ssh/ec2_key \
+              -o StrictHostKeyChecking=no \
+              database/init.sql \
+              ${{ vars.EC2_USER }}@${{ vars.EC2_HOST }}:/opt/mf-tracker/database/        
 
       - name: Deploy application
         run: |
