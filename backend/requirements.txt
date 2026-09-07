@@ -3,3 +3,6 @@ uvicorn[standard]==0.34.0
 SQLAlchemy==2.0.36
 psycopg2-binary==2.9.10
 PyJWT==2.10.1
+pytest
+pytest-cov
+ruff

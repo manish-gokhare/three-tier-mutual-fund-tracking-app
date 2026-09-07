@@ -1,6 +1,5 @@
 import os
 from datetime import date, timedelta
-from decimal import Decimal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,8 +22,12 @@ from .schemas import (
     UserOut,
     UserRegister,
 )
-from .security import create_access_token, decode_access_token, hash_password, verify_password
-
+from .security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 
 app = FastAPI(title="Mutual Fund Tracker API", version="2.0.0")
 origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")]
@@ -119,9 +122,9 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as error:
         db.rollback()
-        raise HTTPException(status_code=409, detail="An account with that email already exists")
+        raise HTTPException(status_code=409, detail="An account with that email already exists") from error
     db.refresh(user)
     return issue_token(user)
 

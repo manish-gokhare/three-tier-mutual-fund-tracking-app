@@ -15,7 +15,6 @@ from sqlalchemy.dialects.postgresql import insert
 from .database import SessionLocal, run_migrations
 from .models import FundNav, MutualFund, NavSyncRun
 
-
 AMFI_NAV_URL = os.getenv("AMFI_NAV_URL", "https://portal.amfiindia.com/spages/NAVAll.txt")
 REFRESH_INTERVAL_SECONDS = max(int(os.getenv("NAV_REFRESH_INTERVAL_SECONDS", "21600")), 300)
 TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -68,7 +67,7 @@ def parse_amfi_report(report: str) -> list[AmfiNav]:
                     plan=fields[4],
                     option=fields[5],
                     nav=Decimal(fields[6]),
-                    nav_date=datetime.strptime(fields[7], "%d-%b-%Y").date(),
+                    nav_date=datetime.strptime(fields[7], "%d-%b-%Y").date(), # noqa: DTZ007
                 )
             )
         except (InvalidOperation, ValueError):
@@ -173,7 +172,7 @@ def main() -> None:
         try:
             matched, total = run_sync()
             print(f"AMFI NAV sync succeeded: {matched} tracked funds matched from {total} records", flush=True)
-        except Exception as error:
+        except Exception as error: # noqa: BLE001
             print(f"AMFI NAV sync failed: {error}", flush=True)
         time.sleep(REFRESH_INTERVAL_SECONDS)
 

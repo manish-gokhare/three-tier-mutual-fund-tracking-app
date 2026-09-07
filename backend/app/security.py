@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-
 PASSWORD_ITERATIONS = 600_000
 JWT_SECRET = os.getenv("JWT_SECRET", "local-development-secret-change-me")
 JWT_ALGORITHM = "HS256"
@@ -16,11 +15,7 @@ JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
 def hash_password(password: str) -> str:
     salt = os.urandom(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PASSWORD_ITERATIONS)
-    return "pbkdf2_sha256${}${}${}".format(
-        PASSWORD_ITERATIONS,
-        base64.urlsafe_b64encode(salt).decode(),
-        base64.urlsafe_b64encode(digest).decode(),
-    )
+    return f"pbkdf2_sha256${PASSWORD_ITERATIONS}${base64.urlsafe_b64encode(salt).decode()}${base64.urlsafe_b64encode(digest).decode()}"
 
 
 def verify_password(password: str, encoded_hash: str | None) -> bool:

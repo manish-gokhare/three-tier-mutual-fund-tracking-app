@@ -1,0 +1,14 @@
+line-length = 1000
+
+[lint]
+select = [
+    "E",
+    "F",
+    "B",
+    "BLE"
+]
+
+ignore = [
+    "B008",
+    "DTZ"   
+]
