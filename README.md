@@ -1,74 +1,283 @@
-# Mutual Fund Tracker — three-tier Docker application
+# Mutual Fund Tracker — Three-Tier Docker Application
 
-This repository runs a PostgreSQL database, a FastAPI REST API, an AMFI NAV updater, and an Express/EJS dashboard as isolated Docker containers. The dashboard calls the API through its Node server; it never opens a database connection.
+This repository runs a three-tier Mutual Fund Tracking application using Docker.
 
-## Start it
+The application consists of:
 
-1. Review the development values in [`.env`](/Users/manish/Documents/ChatGPT/mf-three-tier-app/.env), especially `POSTGRES_PASSWORD`.
-2. From this directory, run:
+* **Frontend** — Express/EJS dashboard
+* **Backend** — FastAPI REST API
+* **NAV Updater** — AMFI NAV synchronization worker
+* **Database** — PostgreSQL 16
 
-   ```sh
-   docker compose up --build
-   ```
+The dashboard communicates with the FastAPI backend through the Node.js server and never connects directly to PostgreSQL.
 
-2a. To temporarily stop the running containers without deleting them or your networks, press Ctrl+C in the terminal where they are running.
+---
 
-If you ran them in detached mode (using -d), run this command from the same directory:
+# Architecture
 
-   ```sh
-   docker compose stop
-   ```
+```text
+                    ┌──────────────────────┐
+                    │       Browser        │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │ Frontend Container   │
+                    │ Express / EJS        │
+                    │ Port: 3000           │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │ Backend Container    │
+                    │ FastAPI              │
+                    │ Port: 8000           │
+                    └──────────┬───────────┘
+                               │
+                 ┌─────────────┴─────────────┐
+                 │                           │
+                 ▼                           ▼
+       ┌──────────────────┐       ┌──────────────────┐
+       │ PostgreSQL       │       │ NAV Updater      │
+       │ 16-alpine        │       │ AMFI NAV Sync    │
+       └────────┬─────────┘       └────────┬─────────┘
+                │                          │
+                └──────────┬───────────────┘
+                           ▼
+                   Persistent Volume
+```
 
-2b.
+---
 
-You can start them back up later by simply running docker compose up -d
+# Local Environment Setup
 
-   ```sh
-   docker compose up -d
-   ```
+## Prerequisites
 
+Install:
 
-2c.
+* Docker
+* Docker Compose
 
-To stop and remove the containers, along with the custom Docker network, run:
+Verify:
+
+```sh
+docker --version
+docker compose version
+```
+
+## Configure environment variables
+
+Create a `.env` file in the project root.
+
+Example:
+
+```env
+# PostgreSQL
+POSTGRES_USER=mf_admin
+POSTGRES_PASSWORD=change_this_local_password
+POSTGRES_DB=mf_tracker
+POSTGRES_PORT=5432
+
+# Application
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+BACKEND_API_URL=http://backend:8000
+
+# Authentication
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRE_MINUTES=480
+COOKIE_SECURE=false
+
+# AMFI NAV
+AMFI_NAV_URL=https://portal.amfiindia.com/spages/NAVAll.txt
+NAV_REFRESH_INTERVAL_SECONDS=21600
+```
+
+**Important:** Never commit the real `.env` file, database password, or production JWT secret to GitHub.
+
+A safe `.env.example` file can be committed instead.
+
+---
+
+# Start the Application Locally
+
+From the project directory:
+
+```sh
+docker compose up --build
+```
+
+The first startup initializes the PostgreSQL database with:
+
+* A demo investor
+* 50 Indian equity mutual funds
+* Large, Mid, Small, Flexi and Multi Cap categories
+* 60 days of deterministic fallback NAV data
+
+The `nav_updater` service checks AMFI's official NAV report every six hours and stores the latest published end-of-day NAV.
+
+AMFI NAV data is end-of-day data and is not an intraday price feed.
+
+---
+
+# Access the Application
+
+Dashboard:
+
+```text
+http://localhost:3000
+```
+
+FastAPI Swagger documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+---
+
+# Stop and Start Containers
+
+## Temporarily stop containers
+
+If running in the foreground:
+
+```sh
+Ctrl+C
+```
+
+If running in detached mode:
+
+```sh
+docker compose stop
+```
+
+Start them again:
+
+```sh
+docker compose start
+```
+
+Alternatively:
+
+```sh
+docker compose up -d
+```
+
+---
+
+# Stop and Remove Containers
+
+To stop and remove containers and the Docker network:
 
 ```sh
 docker compose down
 ```
-Note: This command keeps your database data intact for the next time you start the app.
 
-2d.
+**Note:** PostgreSQL data remains intact because the persistent volume is retained.
 
-To completely wipe everything (including your database data):
-If you need to start completely fresh and delete the persistent database volume, add the -v flag:
+---
+
+# Completely Reset the Database
+
+To remove the PostgreSQL persistent volume and start with a completely fresh database:
 
 ```sh
-  docker compose down -v
+docker compose down -v
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000). The FastAPI interactive documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+Then start the application again:
 
-The first startup initializes the database with a demo investor, 50 Indian equity mutual funds covering Large, Mid, Small, Flexi, and Multi Cap categories, and 60 days of deterministic fallback NAV data. The `nav_updater` service checks AMFI's official complete NAV report every six hours, stores the latest published end-of-day NAV, and transparently prioritizes it over fallback data. AMFI publishes NAVs after each trading day; this is not an intraday price feed.
+```sh
+docker compose up -d
+```
 
-## Sign in
+The PostgreSQL database will be initialized again using the values from `.env`.
 
-The dashboard now opens on a login page. Register a personal account or use the local demo account:
+> **Warning:** `docker compose down -v` permanently deletes the PostgreSQL data stored in the Compose volume.
 
-- Email: `demo@mftracker.local`
-- Password: `DemoPass!2026`
+The SQL initializer runs only when PostgreSQL starts with a new data volume.
 
-Passwords use PBKDF2-SHA256 hashes in PostgreSQL. The Node dashboard keeps the short-lived API JWT in an `HttpOnly`, `SameSite=Lax` cookie; set `COOKIE_SECURE=true` in `.env` when serving over HTTPS. Replace `JWT_SECRET` and the database password before any non-local deployment.
+---
 
-## API highlights
+# Sign In
 
-- `GET /funds` — list funds with their latest NAV (`category` and `search` are optional filters)
-- `GET /funds/{fund_id}/nav?days=30` — NAV history
-- `POST /auth/register` and `POST /auth/login` — create a session or sign in
-- `POST /me/holdings` — add units to the signed-in user's portfolio; repeated additions are merged using a weighted purchase NAV
-- `GET /me/holdings` — signed-in holdings with current value and gain/loss
-- `GET /nav-sync/status` — latest AMFI refresh status
+The dashboard opens on a login page.
 
-Example add-holding payload:
+Local demo account:
+
+```text
+Email:    demo@mftracker.local
+Password: DemoPass!2026
+```
+
+Passwords use PBKDF2-SHA256 hashes in PostgreSQL.
+
+The Node.js dashboard stores the API JWT in an `HttpOnly`, `SameSite=Lax` cookie.
+
+For HTTPS deployments:
+
+```env
+COOKIE_SECURE=true
+```
+
+Before any non-local deployment, replace:
+
+```env
+POSTGRES_PASSWORD
+JWT_SECRET
+```
+
+with strong, unique secrets.
+
+---
+
+# API Highlights
+
+### Funds
+
+```http
+GET /funds
+```
+
+List funds with their latest NAV.
+
+Optional filters:
+
+```text
+category
+search
+```
+
+### NAV History
+
+```http
+GET /funds/{fund_id}/nav?days=30
+```
+
+### Authentication
+
+```http
+POST /auth/register
+POST /auth/login
+```
+
+### Holdings
+
+```http
+POST /me/holdings
+GET /me/holdings
+```
+
+Repeated additions are merged using a weighted purchase NAV.
+
+### NAV Synchronization
+
+```http
+GET /nav-sync/status
+```
+
+Example holding request:
 
 ```json
 {
@@ -78,6 +287,491 @@ Example add-holding payload:
 }
 ```
 
-## Reset sample data
+---
 
-The SQL initializer intentionally runs only on a new PostgreSQL volume. To discard all local data and seed again, stop the stack and run `docker compose down -v`, then start it again.
+# CI/CD Pipeline
+
+The application uses **GitHub Actions with a self-hosted Ubuntu runner** for CI/CD.
+
+The pipeline performs:
+
+1. Code checkout
+2. Python linting using Ruff
+3. Automated testing using Pytest
+4. Docker image build
+5. Docker image push
+6. Deployment to Amazon Linux EC2
+
+The EC2 server does **not build the Docker images**.
+
+Images are built by the GitHub Actions self-hosted runner and pushed to a container registry. The EC2 instance pulls those images and runs them using Docker Compose.
+
+---
+
+# CI/CD Architecture
+
+```text
+                         Developer
+                             │
+                             │ git push
+                             ▼
+                  ┌─────────────────────┐
+                  │   GitHub Repository │
+                  └──────────┬──────────┘
+                             │
+                             ▼
+                  ┌─────────────────────┐
+                  │   GitHub Actions    │
+                  │                     │
+                  │ Self-hosted Ubuntu  │
+                  │ Runner              │
+                  └──────────┬──────────┘
+                             │
+                 ┌───────────┼───────────┐
+                 │           │           │
+                 ▼           ▼           ▼
+              Ruff        Pytest      Docker Build
+                 │           │           │
+                 └───────────┴───────────┘
+                             │
+                             ▼
+                    Docker Image Push
+                             │
+                    ┌────────┴─────────┐
+                    │                  │
+                    ▼                  ▼
+               Docker Hub          Amazon ECR
+                             │
+                             ▼
+                   Amazon Linux EC2
+                             │
+                    docker login
+                             │
+                    docker pull
+                             │
+                             ▼
+                    Docker Compose
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+          ▼                  ▼                  ▼
+      Frontend            Backend          NAV Updater
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             │
+                             ▼
+                        PostgreSQL
+                             │
+                             ▼
+                    Persistent Volume
+```
+
+---
+
+# GitHub Actions CI Pipeline
+
+The CI pipeline validates the application before Docker images are published.
+
+Example workflow:
+
+```text
+Git Push
+   │
+   ▼
+Checkout Code
+   │
+   ▼
+Install Python Dependencies
+   │
+   ▼
+Ruff Lint
+   │
+   ▼
+Pytest
+   │
+   ├── Failure → Stop Pipeline
+   │
+   ▼
+Docker Build
+   │
+   ▼
+Docker Image Push
+```
+
+If Ruff or Pytest fails, the pipeline stops and the images are not deployed.
+
+---
+
+# Docker Images
+
+The application produces three application images:
+
+```text
+mf-three-tier-app-backend
+mf-three-tier-app-frontend
+mf-three-tier-app-nav_updater
+```
+
+PostgreSQL uses the official image:
+
+```text
+postgres:16-alpine
+```
+
+Example registry layout:
+
+```text
+Docker Hub
+
+<dockerhub-user>/mf-three-tier-app-backend
+<dockerhub-user>/mf-three-tier-app-frontend
+<dockerhub-user>/mf-three-tier-app-nav_updater
+```
+
+or:
+
+```text
+Amazon ECR
+
+<aws-account>.dkr.ecr.<region>.amazonaws.com/mf-three-tier-app-backend
+<aws-account>.dkr.ecr.<region>.amazonaws.com/mf-three-tier-app-frontend
+<aws-account>.dkr.ecr.<region>.amazonaws.com/mf-three-tier-app-nav_updater
+```
+
+---
+
+# Production Docker Compose
+
+The production EC2 deployment should use **pre-built images** rather than `build:` instructions.
+
+Example:
+
+```yaml
+services:
+
+  backend:
+    image: <registry>/mf-three-tier-app-backend:${IMAGE_TAG}
+
+  frontend:
+    image: <registry>/mf-three-tier-app-frontend:${IMAGE_TAG}
+
+  nav_updater:
+    image: <registry>/mf-three-tier-app-nav_updater:${IMAGE_TAG}
+
+  postgres:
+    image: postgres:16-alpine
+```
+
+This is important because the EC2 server should **pull the images from the registry instead of building them locally**.
+
+---
+
+# Amazon Linux EC2 Deployment
+
+The target deployment server is an **Amazon Linux EC2 instance**.
+
+The EC2 instance is responsible for:
+
+* Running Docker
+* Running Docker Compose
+* Pulling application images
+* Running the application containers
+* Maintaining the PostgreSQL persistent volume
+
+The EC2 instance does not run the CI build process.
+
+Deployment flow:
+
+```text
+GitHub Actions
+      │
+      │ Docker images
+      ▼
+Docker Hub / ECR
+      │
+      │ docker pull
+      ▼
+Amazon Linux EC2
+      │
+      ▼
+docker compose up -d
+```
+
+---
+
+# EC2 Deployment Directory
+
+The application deployment files are maintained on the EC2 instance under:
+
+```text
+/opt/mftracker
+```
+
+The directory should be owned by the deployment user and have appropriate permissions.
+
+Example:
+
+```sh
+sudo mkdir -p /opt/mftracker
+sudo chown -R $USER:$USER /opt/mftracker
+```
+
+The production deployment can contain:
+
+```text
+/opt/mftracker/
+├── docker-compose.yml
+├── .env
+└── deployment files
+```
+
+The production `.env` file should **not** be stored in GitHub.
+
+---
+
+# Production Environment Variables
+
+Production credentials should be supplied securely on the EC2 instance or through a secrets-management mechanism.
+
+Example:
+
+```env
+POSTGRES_USER=mf_admin
+POSTGRES_PASSWORD=<strong-production-password>
+POSTGRES_DB=mf_tracker
+
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+BACKEND_API_URL=http://backend:8000
+
+JWT_SECRET=<strong-production-secret>
+JWT_EXPIRE_MINUTES=480
+COOKIE_SECURE=true
+
+AMFI_NAV_URL=https://portal.amfiindia.com/spages/NAVAll.txt
+NAV_REFRESH_INTERVAL_SECONDS=21600
+```
+
+Do not commit production secrets to the repository.
+
+---
+
+# Production Database Persistence
+
+PostgreSQL uses a persistent Docker volume.
+
+```text
+PostgreSQL Container
+        │
+        ▼
+Docker Named Volume
+        │
+        ▼
+Persistent Database Data
+```
+
+Updating the application containers does not delete the PostgreSQL data.
+
+For example:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+will update the application containers while retaining the PostgreSQL volume.
+
+**Do not use:**
+
+```sh
+docker compose down -v
+```
+
+on the production EC2 instance unless you intentionally want to destroy the database.
+
+---
+
+# CI/CD Deployment Strategy
+
+The recommended deployment sequence is:
+
+```text
+1. Developer pushes code
+          │
+          ▼
+2. GitHub Actions starts
+          │
+          ▼
+3. Ruff linting
+          │
+          ▼
+4. Pytest
+          │
+          ▼
+5. Build Docker images
+          │
+          ▼
+6. Tag images
+          │
+          ▼
+7. Push images to registry
+          │
+          ▼
+8. Connect to Amazon Linux EC2
+          │
+          ▼
+9. Pull new images
+          │
+          ▼
+10. Restart application containers
+          │
+          ▼
+11. PostgreSQL volume remains intact
+```
+
+---
+
+# Image Tagging
+
+For production deployments, immutable image tags are preferred over relying only on `latest`.
+
+Example:
+
+```text
+mf-three-tier-app-backend:abc1234
+mf-three-tier-app-frontend:abc1234
+mf-three-tier-app-nav_updater:abc1234
+```
+
+where:
+
+```text
+abc1234 = Git commit SHA
+```
+
+This makes it possible to identify exactly which version is deployed.
+
+Example:
+
+```text
+Git Commit
+    │
+    ▼
+abc1234
+    │
+    ├── backend:abc1234
+    ├── frontend:abc1234
+    └── nav_updater:abc1234
+```
+
+The EC2 instance then deploys the images corresponding to that commit.
+
+---
+
+# GitHub Actions Secrets
+
+The following values should be configured as GitHub Actions secrets rather than committed to the repository:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+```
+
+If using Amazon ECR:
+
+```text
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION
+AWS_ACCOUNT_ID
+```
+
+If the deployment connects to EC2 through SSH, the required SSH credentials should also be stored as GitHub Actions secrets.
+
+Prefer AWS IAM roles / short-lived credentials where possible instead of long-lived AWS access keys.
+
+---
+
+# Deployment Principle
+
+The key principle of this CI/CD architecture is:
+
+```text
+                 BUILD ONCE
+                     │
+                     ▼
+              GitHub Actions
+                     │
+                     ▼
+              Docker Registry
+                     │
+             ┌───────┴───────┐
+             │               │
+             ▼               ▼
+          Docker Hub       Amazon ECR
+             │               │
+             └───────┬───────┘
+                     │
+                     ▼
+                EC2 Server
+                     │
+                     ▼
+               PULL IMAGE
+                     │
+                     ▼
+              RUN CONTAINER
+```
+
+The production EC2 instance **pulls pre-built images**. It does not build application images from source code.
+
+---
+
+# Future Kubernetes Deployment
+
+The current Docker Compose deployment provides the foundation for a future Kubernetes deployment.
+
+Current:
+
+```text
+GitHub
+   │
+   ▼
+GitHub Actions
+   │
+   ▼
+Docker Images
+   │
+   ▼
+ECR
+   │
+   ▼
+Amazon Linux EC2
+   │
+   ▼
+Docker Compose
+```
+
+Future:
+
+```text
+GitHub
+   │
+   ▼
+GitHub Actions
+   │
+   ▼
+Docker Images
+   │
+   ▼
+Amazon ECR
+   │
+   ▼
+Kubernetes
+   │
+   ├── Frontend Deployment
+   ├── Backend Deployment
+   ├── NAV Updater
+   └── PostgreSQL + Persistent Storage
+```
+
+This allows the project to evolve from a Docker Compose-based deployment to a Kubernetes-based deployment without changing the fundamental image build and registry workflow.
